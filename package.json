@@ -19,13 +19,14 @@
     "prepare": "node scripts/prepare.js && husky",
     "dev": "pnpm run clean && pnpm run build:watch",
     "build:watch": "rollup -c -w",
-    "build": "pnpm run clean && rollup -c && pnpm run build:types",
+    "build": "pnpm run clean && pnpm run test && rollup -c && pnpm run build:types",
     "build:types": "tsc-alias -p tsconfig.json --outDir dist/types && api-extractor run --local --verbose && rimraf dist/types",
     "clean": "rimraf dist",
     "lint": "eslint ./src --fix && pnpm run format",
     "format": "prettier --write \"src/**/*.{js,ts,mjs}\"",
     "lint-staged": "lint-staged",
-    "prepublishOnly": "pnpm run build && node scripts/prepublish.js"
+    "prepublishOnly": "pnpm run build && node scripts/prepublish.js",
+    "test": "vitest --run"
   },
   "keywords": [
     "agentskills client",
@@ -54,7 +55,7 @@
     "@rollup/plugin-terser": "^0.4.4",
     "@rollup/plugin-typescript": "^11.1.6",
     "@stylistic/eslint-plugin": "^2.13.0",
-    "@types/node": "^20.11.24",
+    "@types/node": "^20.17.13",
     "eslint": "^9.15.0",
     "eslint-config-prettier": "^9.1.0",
     "globals": "^15.0.0",
@@ -66,7 +67,8 @@
     "tsc-alias": "^1.8.16",
     "tslib": "^2.8.1",
     "typescript": "^5.7.2",
-    "typescript-eslint": "^8.16.0"
+    "typescript-eslint": "^8.16.0",
+    "vitest": "^4.0.18"
   },
   "sideEffects": false,
   "engines": {
