@@ -1,18 +1,16 @@
 {
-  "name": "your-lib",
+  "name": "agentskills-client",
   "version": "0.0.1",
+  "description": "A powerful Node.js client SDK for integrating Agent Skills into AI agents and applications.",
   "type": "module",
-  "packageManager": "pnpm@9.0.0",
-  "description": "",
-  "main": "dist/index.cjs.js",
   "module": "dist/index.esm.js",
   "types": "dist/index.d.ts",
+  "packageManager": "pnpm@10.0.0",
   "files": [
     "dist"
   ],
   "exports": {
     ".": {
-      "require": "./dist/index.cjs.js",
       "import": "./dist/index.esm.js",
       "types": "./dist/index.d.ts"
     }
@@ -24,15 +22,22 @@
     "build": "pnpm run clean && rollup -c && pnpm run build:types",
     "build:types": "tsc-alias -p tsconfig.json --outDir dist/types && api-extractor run --local --verbose && rimraf dist/types",
     "clean": "rimraf dist",
-    "lint": "eslint . --fix && pnpm run format",
+    "lint": "eslint ./src --fix && pnpm run format",
     "format": "prettier --write \"src/**/*.{js,ts,mjs}\"",
     "lint-staged": "lint-staged",
     "prepublishOnly": "pnpm run build && node scripts/prepublish.js"
   },
-  "keywords": [],
+  "keywords": [
+    "agentskills client",
+    "agentskills",
+    "skill",
+    "AI agent"
+  ],
   "author": "liu4426350@qq.com",
   "dependencies": {
-    "@babel/runtime": "^7.26.0"
+    "@babel/runtime": "^7.26.0",
+    "gray-matter": "^4.0.3",
+    "zod": "^4.3.6"
   },
   "devDependencies": {
     "@babel/core": "^7.26.0",
@@ -63,26 +68,21 @@
     "typescript": "^5.7.2",
     "typescript-eslint": "^8.16.0"
   },
-  "browserslist": [
-    "> 1%",
-    "last 2 versions",
-    "not ie <= 8"
-  ],
   "sideEffects": false,
   "engines": {
-    "node": ">=20"
+    "node": ">=22"
   },
   "publishConfig": {
     "access": "public"
   },
   "repository": {
     "type": "git",
-    "url": "https://github.com/liujilongObject/typescript-lib-template.git"
+    "url": ""
   },
   "lint-staged": {
     "src/**/*.{js,ts,mjs}": [
       "pnpm run lint"
     ]
   },
-  "license": "MIT"
+  "license": "ISC"
 }

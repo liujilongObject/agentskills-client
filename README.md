@@ -1,84 +1,133 @@
-# TypeScript Library Template
+# Agent Skills Client
 
-一个用于快速创建 TypeScript 库的模板项目，集成了现代前端开发所需的主要工具和最佳实践。
+A robust, enterprise-ready Node.js client SDK for integrating [Agent Skills](https://agentskills.io/) into AI agents and applications. Built with TypeScript, ensuring strict specification compliance and secure script execution.
 
-## 特性
+## Features
 
-- 🎯 TypeScript 支持
-- 📦 ESM 和 CommonJS 双模块格式
-- 🔧 完整的开发工具链
-  - Rollup 构建
-  - ESLint + Prettier 代码规范
-  - Husky + lint-staged Git 钩子
-  - Conventional Commits 提交规范
-- 🚀 开箱即用的配置
-- 📝 完整的类型声明文件
+- **🔍 Skill Discovery**: Automatically scan and discover valid skills in configured directories.
+- **🛡️ Strict Metadata Validation**: Uses Zod to rigorously validate `SKILL.md` frontmatter against the official Agent Skills specification.
+- **📄 Content Activation**: Cleanly strips YAML frontmatter to provide pure Markdown instructions to your LLMs.
+- **🔐 Secure Execution Engine**:
+  - Built-in path traversal prevention (sandboxed to the skill directory).
+  - Cross-platform support for `.js`, `.py`, and `.sh` scripts.
+  - Granular control over execution `cwd` and `env`.
+  - Confirmation hooks (`onConfirm`) for user authorization before running risky scripts.
+  - Custom auditing loggers to prevent stdout pollution.
+- **💬 Prompt Generation**: Instantly generate `<available_skills>` XML blocks for system prompts.
 
-## 项目结构
+## Installation
 
-```
-src/           # 源代码目录
-├── types/     # 类型定义
-└── index.ts   # 入口文件
-dist/          # 构建输出
-scripts/       # 构建脚本
-```
-
-## 构建配置
-
-- TypeScript 配置 (tsconfig.json)
-- Rollup 配置 (rollup.config.mjs)
-- ESLint 配置 (eslint.config.mjs)
-- Prettier 配置 (.prettierrc)
-- Babel 配置 (.babelrc)
-- Commitlint 配置 (commitlint.config.mjs)
-
-## 构建输出
-
-- `dist/index.cjs.js` - CommonJS 格式
-- `dist/index.esm.js` - ES Module 格式
-- `dist/index.d.ts` - TypeScript 类型声明
-
-## 开发指南
-
-### 别名导入
-项目配置了路径别名，可以使用 `@/` 指向 `src` 目录：
-
-```ts
-import { something } from '@/utils'
-```
-
-### Git 提交规范
-
-提交信息必须符合 [Conventional Commits](https://www.conventionalcommits.org/) 规范
-
-## 快速开始
-
-### 克隆模板
-```bash
-git clone <repository-url> my-lib
-```
-
-### 进入项目目录
+Ensure you are using Node.js >= 22.14.0.
 
 ```bash
-cd my-lib
+npm install agentskills-client
+# or
+pnpm add agentskills-client
+# or
+yarn add agentskills-client
 ```
 
-### 安装依赖
+## Quick Start
 
-```bash
-pnpm install
+### 1. Discover and Load Skills
+
+```typescript
+import { discoverSkills, loadSkillMetadata, generateSkillsPrompt } from 'agentskills-client';
+
+async function bootstrap() {
+  // Find all valid skills in a directory
+  const skillPaths = await discoverSkills('/path/to/my/skills/dir');
+
+  // Load and validate metadata for all discovered skills
+  const skillsInfo = await Promise.all(
+    skillPaths.map(path => loadSkillMetadata(path))
+  );
+
+  // Inject this into your LLM's system prompt!
+  const promptXml = generateSkillsPrompt(skillsInfo);
+  console.log(promptXml);
+}
 ```
 
-### 可用命令
+### 2. Activate a Skill
 
-- `pnpm dev` - 开发模式
-- `pnpm build` - 构建生产版本
-- `pnpm lint` - 代码检查
-- `pnpm format` - 代码格式化
+When an LLM decides to use a skill, load the full instructions:
 
+```typescript
+import { activateSkill } from 'agentskills-client';
+
+// Returns the pure markdown body (without the YAML frontmatter)
+const instructions = await activateSkill('/path/to/my/skills/dir/pdf-processing');
+```
+
+### 3. Securely Execute Scripts
+
+When an LLM requests to run a script defined in the skill:
+
+```typescript
+import { executeScript, readResource } from 'agentskills-client';
+
+async function runSkillTask() {
+  const skillDir = '/path/to/my/skills/dir/pdf-processing';
+
+  try {
+    const result = await executeScript(skillDir, 'scripts/extract.py', {
+      args: ['--input', 'doc.pdf'],
+      cwd: process.cwd(), // Run in the user's current directory
+      env: {
+        ...process.env,
+        API_KEY: 'your-secret-key'
+      },
+      // Ask user for permission before executing
+      onConfirm: async (cmd, args) => {
+        console.log(`LLM wants to run: ${cmd} ${args.join(' ')}`);
+        return true; // Return false to abort
+      },
+      // Audit logs
+      logger: {
+        info: (msg) => console.log(`[INFO] ${msg}`),
+        error: (msg) => console.error(`[ERROR] ${msg}`)
+      },
+      timeout: 30000 // 30 second timeout
+    });
+
+    console.log("LLM output:", result.stdout);
+    if (result.stderr) {
+      console.warn("LLM warnings:", result.stderr);
+    }
+  } catch (error) {
+    if (error.name === 'ExecutionError') {
+      // Pass this back to the LLM so it can fix its mistake
+      console.error('Exit code:', error.code);
+      console.error('Stderr:', error.stderr);
+    }
+  }
+
+  // Safe resource reading (prevents directory traversal attacks)
+  const template = await readResource(skillDir, 'assets/template.md');
+}
+```
+
+## API Reference
+
+### `discoverSkills(directoryPath: string): Promise<string[]>`
+Returns an array of absolute paths to discovered skill directories.
+
+### `loadSkillMetadata(skillPath: string): Promise<SkillInfo>`
+Parses and rigorously validates the `SKILL.md` frontmatter.
+
+### `generateSkillsPrompt(skills: SkillInfo[], includeLocation?: boolean): string`
+Generates the standard `<available_skills>` XML string for LLM injection.
+
+### `activateSkill(skillPath: string): Promise<string>`
+Returns the clean Markdown instruction body of the skill.
+
+### `executeScript(skillPath: string, scriptName: string, options?: ExecutionOptions): Promise<ExecutionResult>`
+Safely executes a script (`.js`, `.sh`, `.py`) located inside the skill directory.
+
+### `readResource(skillPath: string, resourceName: string): Promise<string>`
+Safely reads a text file located inside the skill directory.
 
 ## License
 
-MIT
+ISC
