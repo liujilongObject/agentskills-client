@@ -1,6 +1,6 @@
 # Agent Skills Client
 
-A robust, enterprise-ready Node.js client SDK for integrating [Agent Skills](https://agentskills.io/) into AI agents and applications. Built with TypeScript, ensuring strict specification compliance and secure script execution.
+A small but fully functional Node.js client SDK for integrating [Agent Skills](https://agentskills.io/) into AI agents and applications. Built with TypeScript, ensuring strict specification compliance and secure script execution.
 
 ## Features
 

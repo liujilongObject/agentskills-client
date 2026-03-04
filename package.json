@@ -1,7 +1,7 @@
 {
   "name": "agentskills-client",
   "version": "0.0.1",
-  "description": "A powerful Node.js client SDK for integrating Agent Skills into AI agents and applications.",
+  "description": "A small but fully functional Node.js client SDK for integrating Agent Skills into AI agents and applications.",
   "type": "module",
   "module": "dist/index.esm.js",
   "types": "dist/index.d.ts",
@@ -79,7 +79,7 @@
   },
   "repository": {
     "type": "git",
-    "url": ""
+    "url": "https://github.com/liujilongObject/agentskills-client.git"
   },
   "lint-staged": {
     "src/**/*.{js,ts,mjs}": [
