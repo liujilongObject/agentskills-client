@@ -31,11 +31,16 @@ vi.mock('node:child_process', () => {
 
 describe('discoverSkills', () => {
   it('should discover valid skills', async () => {
-    vi.mocked(fs.readdir).mockResolvedValue([
-      { name: 'skill-a', isDirectory: () => true },
-      { name: 'skill-b', isDirectory: () => true },
-      { name: 'file.txt', isDirectory: () => false },
-    ] as any)
+    vi.mocked(fs.readdir).mockImplementation(async (dirPath) => {
+      if (dirPath === '/test/dir') {
+        return [
+          { name: 'skill-a', isDirectory: () => true },
+          { name: 'skill-b', isDirectory: () => true },
+          { name: 'file.txt', isDirectory: () => false },
+        ] as any
+      }
+      return [] as any
+    })
 
     vi.mocked(fs.stat).mockImplementation(async (p: any) => {
       if (p.includes('skill-a')) return { isFile: () => true } as any
@@ -57,19 +62,34 @@ description: A test skill
 body
 `)
     const result = await loadSkillMetadata('/path/to/valid-skill')
-    expect(result.name).toBe('valid-skill')
-    expect(result.description).toBe('A test skill')
-    expect(result.path).toBe('/path/to/valid-skill')
+    expect(result.skill?.name).toBe('valid-skill')
+    expect(result.skill?.description).toBe('A test skill')
+    expect(result.skill?.path).toBe('/path/to/valid-skill')
+    expect(result.diagnostics).toHaveLength(0)
   })
 
-  it('should throw if name does not match directory', async () => {
+  it('should return error diagnostic if name does not match directory', async () => {
     vi.mocked(fs.readFile).mockResolvedValue(`---
 name: wrong-name
 description: A test skill
 ---
 body
 `)
-    await expect(loadSkillMetadata('/path/to/valid-skill')).rejects.toThrow(/does not match its directory name/)
+    const result = await loadSkillMetadata('/path/to/valid-skill')
+    expect(result.skill).toBeNull()
+    expect(result.diagnostics[0].message).toMatch(/does not match its directory name/)
+  })
+
+  it('should fallback to directory name if name is missing', async () => {
+    vi.mocked(fs.readFile).mockResolvedValue(`---
+description: A test skill
+---
+body
+`)
+    const result = await loadSkillMetadata('/path/to/valid-skill')
+    expect(result.skill?.name).toBe('valid-skill')
+    expect(result.skill?.description).toBe('A test skill')
+    expect(result.diagnostics).toHaveLength(0)
   })
 })
 

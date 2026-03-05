@@ -4,8 +4,8 @@ A small but fully functional Node.js client SDK for integrating [Agent Skills](h
 
 ## Features
 
-- **🔍 Skill Discovery**: Automatically scan and discover valid skills in configured directories.
-- **🛡️ Strict Metadata Validation**: Uses Zod to rigorously validate `SKILL.md` frontmatter against the official Agent Skills specification.
+- **🔍 Skill Discovery**: Automatically scan and discover valid skills in configured directories. Supports deep recursive scanning with smart ignore rules (e.g. `node_modules`, `.git`).
+- **🛡️ Fault-Tolerant Metadata Validation**: Uses Zod to rigorously validate `SKILL.md` frontmatter against the official Agent Skills specification. Uses a robust diagnostic system instead of throwing fatal errors.
 - **📄 Content Activation**: Cleanly strips YAML frontmatter to provide pure Markdown instructions to your LLMs.
 - **🔐 Secure Execution Engine**:
   - Built-in path traversal prevention (sandboxed to the skill directory).
@@ -19,11 +19,16 @@ A small but fully functional Node.js client SDK for integrating [Agent Skills](h
 
 Ensure you are using Node.js >= 22.14.0.
 
+### npm
 ```bash
 npm install agentskills-client
-# or
+```
+### pnpm
+```bash
 pnpm add agentskills-client
-# or
+```
+### yarn
+```bash
 yarn add agentskills-client
 ```
 
@@ -35,16 +40,30 @@ yarn add agentskills-client
 import { discoverSkills, loadSkillMetadata, generateSkillsPrompt } from 'agentskills-client';
 
 async function bootstrap() {
-  // Find all valid skills in a directory
-  const skillPaths = await discoverSkills('/path/to/my/skills/dir');
+  // Find all valid skills in a directory (recursive by default)
+  const skillPaths = await discoverSkills('/path/to/my/skills/dir', {
+    recursive: true,
+    ignoreDirs: ['node_modules', '.git', 'dist']
+  });
 
-  // Load and validate metadata for all discovered skills
-  const skillsInfo = await Promise.all(
+  // Load and validate metadata for all discovered skills with fault tolerance
+  const loadedSkills = await Promise.all(
     skillPaths.map(path => loadSkillMetadata(path))
   );
 
+  // Filter out skills that failed validation, log warnings/errors
+  const validSkills = [];
+  for (const { skill, diagnostics } of loadedSkills) {
+    if (diagnostics.length > 0) {
+      console.warn('Diagnostics found:', diagnostics);
+    }
+    if (skill) {
+      validSkills.push(skill);
+    }
+  }
+
   // Inject this into your LLM's system prompt!
-  const promptXml = generateSkillsPrompt(skillsInfo);
+  const promptXml = generateSkillsPrompt(validSkills);
   console.log(promptXml);
 }
 ```
@@ -110,23 +129,33 @@ async function runSkillTask() {
 
 ## API Reference
 
-### `discoverSkills(directoryPath: string): Promise<string[]>`
-Returns an array of absolute paths to discovered skill directories.
+### Core Functions
 
-### `loadSkillMetadata(skillPath: string): Promise<SkillInfo>`
-Parses and rigorously validates the `SKILL.md` frontmatter.
+| Function | Returns | Description |
+| :--- | :--- | :--- |
+| `discoverSkills(path, options?)` | `Promise<string[]>` | Recursively scans a directory and returns an array of absolute paths to discovered skill directories containing a `SKILL.md`. Configurable via `DiscoverSkillsOptions`. |
+| `loadSkillMetadata(path)` | `Promise<LoadSkillResult>` | Parses and rigorously validates the `SKILL.md` frontmatter. Returns an object containing the `skill` (or `null` if fatal) and a `diagnostics` array for any warnings or errors. |
+| `generateSkillsPrompt(skills, includeLocation?)` | `string` | Generates the standard `<available_skills>` XML string for LLM injection. |
+| `activateSkill(path)` | `Promise<string>` | Reads the `SKILL.md` file and returns the clean Markdown instruction body (strips YAML frontmatter). |
+| `executeScript(path, scriptName, options?)` | `Promise<ExecutionResult>` | Safely executes a script (`.js`, `.sh`, `.py`) located inside the skill directory. Prevents path traversal and supports advanced options like `onConfirm` and `timeout`. |
+| `readResource(path, resourceName)` | `Promise<string>` | Safely reads a text file located inside the skill directory, blocking any directory traversal outside the skill's root. |
 
-### `generateSkillsPrompt(skills: SkillInfo[], includeLocation?: boolean): string`
-Generates the standard `<available_skills>` XML string for LLM injection.
+### Types & Interfaces
 
-### `activateSkill(skillPath: string): Promise<string>`
-Returns the clean Markdown instruction body of the skill.
+#### `DiscoverSkillsOptions`
+Options for configuring how skills are discovered on the filesystem.
+- **`recursive`** (`boolean`): Whether to scan subdirectories deeply. Default is `true`.
+- **`ignoreDirs`** (`string[]`): Array of directory names to skip during scanning. Defaults to common noisy directories (`node_modules`, `.git`, `.venv`, `dist`, `build`, `.idea`).
 
-### `executeScript(skillPath: string, scriptName: string, options?: ExecutionOptions): Promise<ExecutionResult>`
-Safely executes a script (`.js`, `.sh`, `.py`) located inside the skill directory.
+#### `LoadSkillResult`
+The result payload from metadata validation, enabling fault tolerance.
+- **`skill`** (`SkillInfo | null`): The validated skill metadata, or `null` if validation failed completely.
+- **`diagnostics`** (`SkillDiagnostic[]`): Array of warnings and errors encountered during parsing (e.g. name mismatch, invalid YAML).
 
-### `readResource(skillPath: string, resourceName: string): Promise<string>`
-Safely reads a text file located inside the skill directory.
+#### `SkillDiagnostic`
+- **`type`** (`'warning' | 'error'`): Severity level of the diagnostic.
+- **`message`** (`string`): The description of what went wrong.
+- **`path`** (`string`): The absolute path to the file that generated the diagnostic.
 
 ## License
 

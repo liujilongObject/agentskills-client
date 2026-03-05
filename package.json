@@ -1,6 +1,6 @@
 {
   "name": "agentskills-client",
-  "version": "0.0.1",
+  "version": "0.0.2",
   "description": "A small but fully functional Node.js client SDK for integrating Agent Skills into AI agents and applications.",
   "type": "module",
   "module": "dist/index.esm.js",

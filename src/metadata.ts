@@ -29,13 +29,26 @@ export interface SkillInfo extends SkillMetadata {
   path: string
 }
 
+export interface SkillDiagnostic {
+  type: 'warning' | 'error'
+  message: string
+  path: string
+}
+
+export interface LoadSkillResult {
+  skill: SkillInfo | null
+  diagnostics: SkillDiagnostic[]
+}
+
 /**
  * Loads and rigorously validates the metadata of a skill from its SKILL.md file.
+ * Returns the parsed skill (or null if fatal) along with any diagnostics.
  *
  * @param skillPath - The absolute path to the skill directory
- * @returns The validated metadata including the skill's path
+ * @returns An object containing the loaded skill and diagnostics array
  */
-export async function loadSkillMetadata(skillPath: string): Promise<SkillInfo> {
+export async function loadSkillMetadata(skillPath: string): Promise<LoadSkillResult> {
+  const diagnostics: SkillDiagnostic[] = []
   const skillMdPath = path.join(skillPath, 'SKILL.md')
   const dirName = path.basename(skillPath)
 
@@ -43,29 +56,52 @@ export async function loadSkillMetadata(skillPath: string): Promise<SkillInfo> {
     const content = await fs.readFile(skillMdPath, 'utf8')
     const { data } = matter(content)
 
-    // Validate using Zod
-    const metadata = SkillMetadataSchema.parse(data)
+    // Fallback: If name is not provided in frontmatter, use the directory name.
+    const rawName = (data as SkillMetadata).name || dirName
+
+    // Validate using Zod with the resolved name
+    const parsed = SkillMetadataSchema.safeParse({ ...data, name: rawName })
+
+    if (!parsed.success) {
+      const issues = parsed.error.issues.map((e) => `${e.path.join('.')}: ${e.message}`).join(', ')
+      diagnostics.push({
+        type: 'error',
+        message: `Invalid SKILL.md frontmatter: ${issues}`,
+        path: skillMdPath,
+      })
+      return { skill: null, diagnostics }
+    }
+
+    const metadata = parsed.data
 
     // Spec Requirement: name must match the parent directory name
     if (metadata.name !== dirName) {
-      throw new Error(
-        `Skill name '${metadata.name}' does not match its directory name '${dirName}'`
-      )
+      diagnostics.push({
+        type: 'error',
+        message: `Skill name '${metadata.name}' does not match its directory name '${dirName}'`,
+        path: skillMdPath,
+      })
+      // Even if name mismatches, per pi-skills.ts behavior, we could optionally still load it with a warning,
+      // but the spec strongly implies they should match. Let's return null to prevent loading misnamed skills,
+      // or we can just warn. Since the previous code threw an error, changing to error diagnostic + null is safe.
+      return { skill: null, diagnostics }
     }
 
     return {
-      ...metadata,
-      path: skillPath,
+      skill: {
+        ...metadata,
+        path: skillPath,
+      },
+      diagnostics,
     }
   } catch (error) {
-    if (error instanceof z.ZodError) {
-      const issues = error.issues.map((e) => `${e.path.join('.')}: ${e.message}`).join(', ')
-      throw new Error(`Invalid SKILL.md frontmatter at ${skillPath}: ${issues}`)
-    }
-    if (error instanceof Error) {
-      throw new Error(`Failed to load metadata for skill at ${skillPath}: ${error.message}`)
-    }
-    throw error
+    const message = error instanceof Error ? error.message : String(error)
+    diagnostics.push({
+      type: 'error',
+      message: `Failed to load metadata: ${message}`,
+      path: skillMdPath,
+    })
+    return { skill: null, diagnostics }
   }
 }
 

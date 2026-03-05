@@ -25,6 +25,8 @@ export interface ExecutionOptions {
   timeout?: number
   /** Optional logger for auditing script execution without polluting stdout */
   logger?: ExecutionLogger
+  /** Maximum buffer size for stdout and stderr */
+  maxBuffer?: number
 }
 
 export interface ExecutionResult {
@@ -59,7 +61,7 @@ export async function executeScript(
   scriptName: string,
   options: ExecutionOptions = {}
 ): Promise<ExecutionResult> {
-  const { args = [], onConfirm, timeout = 30000, cwd, env, logger } = options
+  const { args = [], onConfirm, timeout = 30000, cwd, env, logger, maxBuffer } = options
 
   // Security: Prevent Path Traversal
   const scriptPath = path.resolve(skillPath, scriptName)
@@ -74,13 +76,6 @@ export async function executeScript(
 
   if (ext === '.js') {
     command = process.execPath // current node executable
-    commandArgs = [scriptPath, ...args]
-  } else if (ext === '.sh') {
-    // Rely on system bash; on Windows this assumes bash is in PATH (e.g., Git Bash, WSL)
-    command = 'bash'
-    commandArgs = [scriptPath, ...args]
-  } else if (ext === '.py') {
-    command = process.platform === 'win32' ? 'python' : 'python3'
     commandArgs = [scriptPath, ...args]
   } else {
     throw new Error(`Unsupported script extension: ${ext}. Only .js, .py, and .sh are supported.`)
@@ -99,6 +94,7 @@ export async function executeScript(
       timeout,
       cwd: cwd ?? process.cwd(),
       env: env ? { ...process.env, ...env } : process.env,
+      maxBuffer: maxBuffer ?? 1 * 1024 * 1024, // default to 1MB
     })
 
     if (logger) {
