@@ -1,5 +1,7 @@
 import fs from 'node:fs/promises'
 import path from 'node:path'
+import { SkillInfo, loadSkillMetadata } from './metadata'
+import { activateSkill } from './activation'
 
 const DEFAULT_IGNORED_DIRS = new Set(['node_modules', '.git', '.venv', 'dist', 'build', '.idea'])
 
@@ -73,6 +75,44 @@ export async function discoverSkills(
     if (error instanceof Error) {
       throw new Error(`Failed to discover skills in directory ${directoryPath}: ${error.message}`)
     }
+    throw error
+  }
+}
+
+// interface SkillInfoWithContent extends SkillInfo {
+//   content: string
+// }
+
+/**
+ * Search for and load a single skill from the specified directory based on the skill name
+ * (the specification stipulates that the skill name and the directory name must match).
+ *
+ * @param directoryPath - The path to the directory containing skills
+ * @param name - The skill name to search for
+ * @returns Skill objects that load successfully will return null if not found or if loading fails.
+ */
+export async function getSkillByName(
+  directoryPath: string,
+  name: string
+): Promise<SkillInfo | null> {
+  const skillPath = path.join(directoryPath, name)
+  const skillMdPath = path.join(skillPath, 'SKILL.md')
+
+  try {
+    const stats = await fs.stat(skillMdPath)
+    if (!stats.isFile()) {
+      return null
+    }
+
+    const skillMetadata = await loadSkillMetadata(skillPath)
+    if (!skillMetadata.skill) {
+      return null
+    }
+
+    const skillContent = await activateSkill(skillPath)
+
+    return { ...skillMetadata.skill, content: skillContent }
+  } catch (error) {
     throw error
   }
 }

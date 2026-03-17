@@ -27,6 +27,7 @@ export type SkillMetadata = z.infer<typeof SkillMetadataSchema>
 
 export interface SkillInfo extends SkillMetadata {
   path: string
+  content?: string
 }
 
 export interface SkillDiagnostic {

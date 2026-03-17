@@ -3,6 +3,7 @@ import fs from 'node:fs/promises'
 import path from 'node:path'
 import {
   discoverSkills,
+  getSkillByName,
   loadSkillMetadata,
   generateSkillsPrompt,
   activateSkill,
@@ -50,6 +51,47 @@ describe('discoverSkills', () => {
     const skills = await discoverSkills('/test/dir')
     expect(skills).toHaveLength(1)
     expect(skills[0]).toContain(path.normalize('/test/dir/skill-a'))
+  })
+})
+
+describe('getSkillByName', () => {
+  it('should return null if skill directory does not exist or SKILL.md is missing', async () => {
+    vi.mocked(fs.stat).mockRejectedValue(new Error('Not found'))
+    const result = await getSkillByName('/test/dir', 'non-existent')
+    expect(result).toBeNull()
+  })
+
+  it('should return null if SKILL.md is not a file', async () => {
+    vi.mocked(fs.stat).mockResolvedValue({ isFile: () => false } as any)
+    const result = await getSkillByName('/test/dir', 'not-a-file')
+    expect(result).toBeNull()
+  })
+
+  it('should return skill info with content if valid', async () => {
+    vi.mocked(fs.stat).mockResolvedValue({ isFile: () => true } as any)
+    vi.mocked(fs.readFile).mockResolvedValue(`---
+name: valid-skill
+description: A test skill
+---
+# Content here`)
+
+    const result = await getSkillByName('/test/dir', 'valid-skill')
+    expect(result).not.toBeNull()
+    expect(result?.name).toBe('valid-skill')
+    expect(result?.description).toBe('A test skill')
+    expect(result?.content).toBe('# Content here')
+  })
+
+  it('should return null if metadata loading fails', async () => {
+    vi.mocked(fs.stat).mockResolvedValue({ isFile: () => true } as any)
+    vi.mocked(fs.readFile).mockResolvedValue(`---
+name: wrong-name
+description: A test skill
+---
+body`)
+
+    const result = await getSkillByName('/test/dir', 'valid-skill')
+    expect(result).toBeNull()
   })
 })
 

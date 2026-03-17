@@ -134,6 +134,7 @@ async function runSkillTask() {
 | Function | Returns | Description |
 | :--- | :--- | :--- |
 | `discoverSkills(path, options?)` | `Promise<string[]>` | Recursively scans a directory and returns an array of absolute paths to discovered skill directories containing a `SKILL.md`. Configurable via `DiscoverSkillsOptions`. |
+| `getSkillByName(path, name)` | `Promise<SkillInfo>` | Search for and load a single skill from the specified directory based on the skill name  |
 | `loadSkillMetadata(path)` | `Promise<LoadSkillResult>` | Parses and rigorously validates the `SKILL.md` frontmatter. Returns an object containing the `skill` (or `null` if fatal) and a `diagnostics` array for any warnings or errors. |
 | `generateSkillsPrompt(skills, includeLocation?)` | `string` | Generates the standard `<available_skills>` XML string for LLM injection. |
 | `activateSkill(path)` | `Promise<string>` | Reads the `SKILL.md` file and returns the clean Markdown instruction body (strips YAML frontmatter). |

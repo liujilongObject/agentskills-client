@@ -1,4 +1,4 @@
-export { discoverSkills, DiscoverSkillsOptions } from './discovery.js'
+export { discoverSkills, getSkillByName, DiscoverSkillsOptions } from './discovery.js'
 export {
   loadSkillMetadata,
   generateSkillsPrompt,
