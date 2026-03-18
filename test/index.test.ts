@@ -55,10 +55,9 @@ describe('discoverSkills', () => {
 })
 
 describe('getSkillByName', () => {
-  it('should return null if skill directory does not exist or SKILL.md is missing', async () => {
+  it('should throw an error if skill directory does not exist or SKILL.md is missing', async () => {
     vi.mocked(fs.stat).mockRejectedValue(new Error('Not found'))
-    const result = await getSkillByName('/test/dir', 'non-existent')
-    expect(result).toBeNull()
+    await expect(getSkillByName('/test/dir', 'non-existent')).rejects.toThrow('Not found')
   })
 
   it('should return null if SKILL.md is not a file', async () => {
