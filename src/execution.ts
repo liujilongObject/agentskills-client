@@ -27,6 +27,8 @@ export interface ExecutionOptions {
   logger?: ExecutionLogger
   /** Maximum buffer size for stdout and stderr */
   maxBuffer?: number
+  /** Optional AbortController can be used to cancel an asynchronous action */
+  abortSignal?: AbortSignal
 }
 
 export interface ExecutionResult {
@@ -61,7 +63,7 @@ export async function executeScript(
   scriptName: string,
   options: ExecutionOptions = {}
 ): Promise<ExecutionResult> {
-  const { args = [], onConfirm, timeout = 30000, cwd, env, logger, maxBuffer } = options
+  const { args = [], onConfirm, timeout = 0, cwd, env, logger, maxBuffer } = options
 
   // Security: Prevent Path Traversal
   const scriptPath = path.resolve(skillPath, scriptName)
@@ -91,6 +93,7 @@ export async function executeScript(
     }
 
     const { stdout, stderr } = await execFileAsync(command, commandArgs, {
+      signal: options.abortSignal,
       timeout,
       cwd: cwd ?? process.cwd(),
       env: env ? { ...process.env, ...env } : process.env,
